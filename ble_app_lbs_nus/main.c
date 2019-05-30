@@ -354,7 +354,6 @@ static void advertising_init(void)
         advdata.include_appearance = true;
         advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
-
         memset(&srdata, 0, sizeof(srdata));
         srdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
         srdata.uuids_complete.p_uuids  = adv_uuids;
@@ -452,7 +451,7 @@ void uart_event_handle(app_uart_evt_t * p_event)
                                         }
                                 } while (err_code == NRF_ERROR_RESOURCES);
                         }
-                        // app_uart_flush();
+                        app_uart_flush();
                         index = 0;
                 }
 

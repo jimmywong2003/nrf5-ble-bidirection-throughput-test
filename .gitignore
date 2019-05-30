@@ -21,6 +21,13 @@
 *.a
 *.la
 *.lo
+*.bin
+*.ipch
+*.jlink
+*.ind
+*.ld
+*.swp
+*.json
 
 # Shared objects (inc. Windows DLLs)
 *.dll

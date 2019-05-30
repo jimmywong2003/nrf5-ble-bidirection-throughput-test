@@ -319,10 +319,6 @@ void ble_its_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
                 on_hvx(p_ble_its_c, p_ble_evt);
                 break;
 
-        case BLE_GATTC_EVT_WRITE_CMD_TX_COMPLETE:
-
-                break;
-
         case BLE_GATTC_EVT_WRITE_RSP:
                 on_write_rsp(p_ble_its_c, p_ble_evt);
                 break;
