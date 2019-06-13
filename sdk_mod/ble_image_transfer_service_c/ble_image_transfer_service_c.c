@@ -38,7 +38,6 @@
  *
  */
 
-
 #include "sdk_common.h"
 #if NRF_MODULE_ENABLED(BLE_ITS_C)
 #include <stdlib.h>
@@ -51,16 +50,15 @@
 
 #include "nrf_gpio.h"
 
-
 #define NRF_LOG_MODULE_NAME ble_image_transfer_service_c
 #include "nrf_log.h"
 NRF_LOG_MODULE_REGISTER();
 
-#define TX_BUFFER_MASK         0x07                  /**< TX Buffer mask, must be a mask of continuous zeroes, followed by continuous sequence of ones: 000...111. */
-#define TX_BUFFER_SIZE         (TX_BUFFER_MASK + 1)  /**< Size of send buffer, which is 1 higher than the mask. */
+#define TX_BUFFER_MASK 0x07                 /**< TX Buffer mask, must be a mask of continuous zeroes, followed by continuous sequence of ones: 000...111. */
+#define TX_BUFFER_SIZE (TX_BUFFER_MASK + 1) /**< Size of send buffer, which is 1 higher than the mask. */
 
-#define WRITE_MESSAGE_LENGTH   BLE_CCCD_VALUE_LEN    /**< Length of the write message for CCCD. */
-#define WRITE_MESSAGE_LENGTH   BLE_CCCD_VALUE_LEN    /**< Length of the write message for CCCD. */
+#define WRITE_MESSAGE_LENGTH BLE_CCCD_VALUE_LEN /**< Length of the write message for CCCD. */
+#define WRITE_MESSAGE_LENGTH BLE_CCCD_VALUE_LEN /**< Length of the write message for CCCD. */
 
 typedef enum
 {
@@ -72,28 +70,31 @@ typedef enum
  */
 typedef struct
 {
-        uint8_t gattc_value[WRITE_MESSAGE_LENGTH];               /**< The message to write. */
-        ble_gattc_write_params_t gattc_params;                   /**< GATTC parameters for this message. */
+        uint8_t gattc_value[WRITE_MESSAGE_LENGTH]; /**< The message to write. */
+        ble_gattc_write_params_t gattc_params;     /**< GATTC parameters for this message. */
 } write_params_t;
-
 
 /**@brief Structure for holding data to be transmitted to the connected central.
  */
 typedef struct
 {
-        uint16_t conn_handle;  /**< Connection handle to be used when transmitting this message. */
-        tx_request_t type;     /**< Type of this message, i.e. read or write message. */
-        union
-        {
-                uint16_t read_handle; /**< Read request message. */
+        uint16_t conn_handle; /**< Connection handle to be used when transmitting this message. */
+        tx_request_t type;    /**< Type of this message, i.e. read or write message. */
+        union {
+                uint16_t read_handle;     /**< Read request message. */
                 write_params_t write_req; /**< Write request message. */
         } req;
 } tx_message_t;
 
+static tx_message_t m_tx_buffer[TX_BUFFER_SIZE]; /**< Transmit buffer for messages to be transmitted to the central. */
+static uint32_t m_tx_insert_index = 0;           /**< Current index in the transmit buffer where the next message should be inserted. */
+static uint32_t m_tx_index = 0;                  /**< Current index in the transmit buffer from where the next message to be transmitted resides. */
 
-static tx_message_t m_tx_buffer[TX_BUFFER_SIZE];  /**< Transmit buffer for messages to be transmitted to the central. */
-static uint32_t m_tx_insert_index = 0;            /**< Current index in the transmit buffer where the next message should be inserted. */
-static uint32_t m_tx_index = 0;                   /**< Current index in the transmit buffer from where the next message to be transmitted resides. */
+volatile uint32_t m_file_size = 0, m_file_pos = 0, m_max_data_length = 20;
+uint8_t *m_file_data;
+ble_its_c_t *m_its_c;
+static uint32_t count = 0;
+static volatile bool nrf_error_resources = false;
 
 #define ITS_ENABLE_PIN_DEBUGGING 0
 
@@ -134,9 +135,6 @@ static void its_enable_gpio_debug(void)
 #endif
 }
 
-
-
-
 static void tx_buffer_process(void)
 {
         if (m_tx_index != m_tx_insert_index)
@@ -168,18 +166,15 @@ static void tx_buffer_process(void)
         }
 }
 
-
-void ble_its_c_on_db_disc_evt(ble_its_c_t * p_ble_its_c, ble_db_discovery_evt_t * p_evt)
+void ble_its_c_on_db_disc_evt(ble_its_c_t *p_ble_its_c, ble_db_discovery_evt_t *p_evt)
 {
         ble_its_c_evt_t its_c_evt;
-        memset(&its_c_evt,0,sizeof(ble_its_c_evt_t));
+        memset(&its_c_evt, 0, sizeof(ble_its_c_evt_t));
 
-        ble_gatt_db_char_t * p_chars = p_evt->params.discovered_db.charateristics;
+        ble_gatt_db_char_t *p_chars = p_evt->params.discovered_db.charateristics;
 
         // Check if the ITS was discovered.
-        if (    (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE)
-                &&  (p_evt->params.discovered_db.srv_uuid.uuid == BLE_UUID_ITS_SERVICE)
-                &&  (p_evt->params.discovered_db.srv_uuid.type == p_ble_its_c->uuid_type))
+        if ((p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE) && (p_evt->params.discovered_db.srv_uuid.uuid == BLE_UUID_ITS_SERVICE) && (p_evt->params.discovered_db.srv_uuid.type == p_ble_its_c->uuid_type))
         {
                 for (uint32_t i = 0; i < p_evt->params.discovered_db.char_count; i++)
                 {
@@ -187,6 +182,10 @@ void ble_its_c_on_db_disc_evt(ble_its_c_t * p_ble_its_c, ble_db_discovery_evt_t 
                         {
                         case BLE_UUID_ITS_RX_CHARACTERISTIC:
                                 its_c_evt.handles.its_rx_handle = p_chars[i].characteristic.handle_value;
+                                break;
+
+                        case BLE_UUID_ITS_RX_DATA_CHARACTERISTIC:
+                                its_c_evt.handles.its_rx_data_handle = p_chars[i].characteristic.handle_value;
                                 break;
 
                         case BLE_UUID_ITS_TX_CHARACTERISTIC:
@@ -208,14 +207,14 @@ void ble_its_c_on_db_disc_evt(ble_its_c_t * p_ble_its_c, ble_db_discovery_evt_t 
                         if (p_ble_its_c->conn_handle != BLE_CONN_HANDLE_INVALID)
                         {
                                 its_c_evt.conn_handle = p_evt->conn_handle;
-                                its_c_evt.evt_type    = BLE_ITS_C_EVT_DISCOVERY_COMPLETE;
+                                its_c_evt.evt_type = BLE_ITS_C_EVT_DISCOVERY_COMPLETE;
                                 p_ble_its_c->evt_handler(p_ble_its_c, &its_c_evt);
                         }
                 }
         }
 }
 
-static void on_write_rsp(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
+static void on_write_rsp(ble_its_c_t *p_ble_its_c, ble_evt_t const *p_ble_evt)
 {
         // Check if the event if on the link for this instance
         if (p_ble_its_c->conn_handle != p_ble_evt->evt.gattc_evt.conn_handle)
@@ -226,7 +225,7 @@ static void on_write_rsp(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
         tx_buffer_process();
 }
 
-static void on_hvx(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
+static void on_hvx(ble_its_c_t *p_ble_its_c, ble_evt_t const *p_ble_evt)
 {
         // Check if the event is on the link for this instance
         if (p_ble_its_c->conn_handle != p_ble_evt->evt.gattc_evt.conn_handle)
@@ -234,34 +233,32 @@ static void on_hvx(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
                 return;
         }
         // Check if this is a Button notification.
-        if ((p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_its_c->handles.its_tx_handle) \
-            && (p_ble_its_c->evt_handler != NULL))
+        if ((p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_its_c->handles.its_tx_handle) && (p_ble_its_c->evt_handler != NULL))
         {
                 //if (p_ble_evt->evt.gattc_evt.params.hvx.len == 1)
                 {
                         ble_its_c_evt_t ble_its_c_evt;
 
-                        ble_its_c_evt.evt_type                   = BLE_ITS_C_EVT_ITS_TX_EVT;
-                        ble_its_c_evt.conn_handle                = p_ble_its_c->conn_handle;
-                        ble_its_c_evt.p_data                     = (uint8_t *)p_ble_evt->evt.gattc_evt.params.hvx.data;
-                        ble_its_c_evt.data_len                   = p_ble_evt->evt.gattc_evt.params.hvx.len;
+                        ble_its_c_evt.evt_type = BLE_ITS_C_EVT_ITS_TX_EVT;
+                        ble_its_c_evt.conn_handle = p_ble_its_c->conn_handle;
+                        ble_its_c_evt.p_data = (uint8_t *)p_ble_evt->evt.gattc_evt.params.hvx.data;
+                        ble_its_c_evt.data_len = p_ble_evt->evt.gattc_evt.params.hvx.len;
                         //ble_its_c_evt.params.button.button_state = ble_its_c_evt->evt.gattc_evt.params.hvx.data[0];
                         p_ble_its_c->evt_handler(p_ble_its_c, &ble_its_c_evt);
                         //NRF_LOG_DEBUG("Client sending data.");
                 }
         }
         // Check if this is a Button notification.
-        if ((p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_its_c->handles.its_img_info_handle) \
-            && (p_ble_its_c->evt_handler != NULL))
+        if ((p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_its_c->handles.its_img_info_handle) && (p_ble_its_c->evt_handler != NULL))
         {
                 //if (p_ble_evt->evt.gattc_evt.params.hvx.len == 1)
                 {
                         ble_its_c_evt_t ble_its_c_evt;
 
-                        ble_its_c_evt.evt_type                   = BLE_ITS_C_EVT_ITS_IMG_INFO_EVT;
-                        ble_its_c_evt.conn_handle                = p_ble_its_c->conn_handle;
-                        ble_its_c_evt.p_data                     = (uint8_t *)p_ble_evt->evt.gattc_evt.params.hvx.data;
-                        ble_its_c_evt.data_len                   = p_ble_evt->evt.gattc_evt.params.hvx.len;
+                        ble_its_c_evt.evt_type = BLE_ITS_C_EVT_ITS_IMG_INFO_EVT;
+                        ble_its_c_evt.conn_handle = p_ble_its_c->conn_handle;
+                        ble_its_c_evt.p_data = (uint8_t *)p_ble_evt->evt.gattc_evt.params.hvx.data;
+                        ble_its_c_evt.data_len = p_ble_evt->evt.gattc_evt.params.hvx.len;
                         //ble_its_c_evt.params.button.button_state = ble_its_c_evt->evt.gattc_evt.params.hvx.data[0];
                         p_ble_its_c->evt_handler(p_ble_its_c, &ble_its_c_evt);
                         //NRF_LOG_DEBUG("Client sending data.");
@@ -269,7 +266,7 @@ static void on_hvx(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
         }
 }
 
-uint32_t ble_its_c_init(ble_its_c_t * p_ble_its_c, ble_its_c_init_t * p_ble_its_c_init)
+uint32_t ble_its_c_init(ble_its_c_t *p_ble_its_c, ble_its_c_init_t *p_ble_its_c_init)
 {
         uint32_t err_code;
         ble_uuid_t its_uuid;
@@ -278,12 +275,13 @@ uint32_t ble_its_c_init(ble_its_c_t * p_ble_its_c, ble_its_c_init_t * p_ble_its_
         VERIFY_PARAM_NOT_NULL(p_ble_its_c);
         VERIFY_PARAM_NOT_NULL(p_ble_its_c_init);
 
-        p_ble_its_c->conn_handle           = BLE_CONN_HANDLE_INVALID;
+        p_ble_its_c->conn_handle = BLE_CONN_HANDLE_INVALID;
         p_ble_its_c->handles.its_tx_handle = BLE_GATT_HANDLE_INVALID;
         p_ble_its_c->handles.its_rx_handle = BLE_GATT_HANDLE_INVALID;
+        p_ble_its_c->handles.its_rx_data_handle = BLE_GATT_HANDLE_INVALID;
         p_ble_its_c->handles.its_img_info_handle = BLE_GATT_HANDLE_INVALID;
 
-        p_ble_its_c->evt_handler           = p_ble_its_c_init->evt_handler;
+        p_ble_its_c->evt_handler = p_ble_its_c_init->evt_handler;
 
         err_code = sd_ble_uuid_vs_add(&its_base_uuid, &p_ble_its_c->uuid_type);
         VERIFY_SUCCESS(err_code);
@@ -296,18 +294,54 @@ uint32_t ble_its_c_init(ble_its_c_t * p_ble_its_c, ble_its_c_init_t * p_ble_its_
         return ble_db_discovery_evt_register(&its_uuid);
 }
 
-void ble_its_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
+
+
+static uint32_t push_c_data_packets()
 {
-        ble_its_c_t * p_ble_its_c = (ble_its_c_t *)p_context;
+        uint32_t return_code = NRF_SUCCESS;
+        uint32_t packet_length = m_max_data_length;
+        uint32_t packet_size = 0;
+
+        //NRF_LOG_INFO("%d", count++);
+        while (return_code == NRF_SUCCESS)
+        {
+                if ((m_file_size - m_file_pos) > packet_length)
+                {
+                        packet_size = packet_length;
+                }
+                else if ((m_file_size - m_file_pos) > 0)
+                {
+                        packet_size = m_file_size - m_file_pos;
+                }
+
+                if (packet_size > 0)
+                {
+                        return_code = ble_its_c_string_send(m_its_c, &m_file_data[m_file_pos], packet_size);
+                        if (return_code == NRF_SUCCESS)
+                        {
+                                m_file_pos += packet_size;
+                        }
+                }
+                else
+                {
+                        m_file_size = 0;
+                        break;
+                }
+        }
+
+        return return_code;
+}
+
+void ble_its_c_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context)
+{
+        ble_its_c_t *p_ble_its_c = (ble_its_c_t *)p_context;
 
         if ((p_ble_its_c == NULL) || (p_ble_evt == NULL))
         {
                 return;
         }
 
-        if ( (p_ble_its_c->conn_handle != BLE_CONN_HANDLE_INVALID)
-             &&(p_ble_its_c->conn_handle != p_ble_evt->evt.gap_evt.conn_handle)
-             )
+        if ((p_ble_its_c->conn_handle != BLE_CONN_HANDLE_INVALID) && (p_ble_its_c->conn_handle != p_ble_evt->evt.gap_evt.conn_handle))
         {
                 return;
         }
@@ -324,8 +358,7 @@ void ble_its_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
                 break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-                if (p_ble_evt->evt.gap_evt.conn_handle == p_ble_its_c->conn_handle
-                    && p_ble_its_c->evt_handler != NULL)
+                if (p_ble_evt->evt.gap_evt.conn_handle == p_ble_its_c->conn_handle && p_ble_its_c->evt_handler != NULL)
                 {
                         ble_its_c_evt_t its_c_evt;
 
@@ -334,6 +367,18 @@ void ble_its_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
                         p_ble_its_c->conn_handle = BLE_CONN_HANDLE_INVALID;
                         p_ble_its_c->evt_handler(p_ble_its_c, &its_c_evt);
                 }
+                break;
+
+        case BLE_GATTC_EVT_WRITE_CMD_TX_COMPLETE:
+                if (m_file_size > 0)
+                {
+                        push_c_data_packets();
+                }
+                else
+                {
+                    NRF_LOG_INFO("Sent Complete!");
+                }
+                nrf_error_resources = false;
                 break;
 
         default:
@@ -346,58 +391,53 @@ void ble_its_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 static uint32_t cccd_configure(uint16_t conn_handle, uint16_t cccd_handle, bool enable)
 {
         NRF_LOG_DEBUG("Configuring CCCD. CCCD Handle = %d, Connection Handle = %d",
-                      cccd_handle,conn_handle);
+                      cccd_handle, conn_handle);
 
-        tx_message_t * p_msg;
+        tx_message_t *p_msg;
         uint16_t cccd_val = enable ? BLE_GATT_HVX_NOTIFICATION : 0;
 
-        p_msg              = &m_tx_buffer[m_tx_insert_index++];
+        p_msg = &m_tx_buffer[m_tx_insert_index++];
         m_tx_insert_index &= TX_BUFFER_MASK;
 
-        p_msg->req.write_req.gattc_params.handle   = cccd_handle;
-        p_msg->req.write_req.gattc_params.len      = WRITE_MESSAGE_LENGTH;
-        p_msg->req.write_req.gattc_params.p_value  = p_msg->req.write_req.gattc_value;
-        p_msg->req.write_req.gattc_params.offset   = 0;
+        p_msg->req.write_req.gattc_params.handle = cccd_handle;
+        p_msg->req.write_req.gattc_params.len = WRITE_MESSAGE_LENGTH;
+        p_msg->req.write_req.gattc_params.p_value = p_msg->req.write_req.gattc_value;
+        p_msg->req.write_req.gattc_params.offset = 0;
         p_msg->req.write_req.gattc_params.write_op = BLE_GATT_OP_WRITE_REQ;
-        p_msg->req.write_req.gattc_value[0]        = LSB_16(cccd_val);
-        p_msg->req.write_req.gattc_value[1]        = MSB_16(cccd_val);
-        p_msg->conn_handle                         = conn_handle;
-        p_msg->type                                = WRITE_REQ;
+        p_msg->req.write_req.gattc_value[0] = LSB_16(cccd_val);
+        p_msg->req.write_req.gattc_value[1] = MSB_16(cccd_val);
+        p_msg->conn_handle = conn_handle;
+        p_msg->type = WRITE_REQ;
 
         tx_buffer_process();
         return NRF_SUCCESS;
 }
 
-
-uint32_t ble_its_c_tx_notif_enable(ble_its_c_t * p_ble_its_c)
+uint32_t ble_its_c_tx_notif_enable(ble_its_c_t *p_ble_its_c)
 {
         VERIFY_PARAM_NOT_NULL(p_ble_its_c);
 
-        if ( (p_ble_its_c->conn_handle == BLE_CONN_HANDLE_INVALID)
-             ||(p_ble_its_c->handles.its_tx_cccd_handle == BLE_GATT_HANDLE_INVALID)
-             )
+        if ((p_ble_its_c->conn_handle == BLE_CONN_HANDLE_INVALID) || (p_ble_its_c->handles.its_tx_cccd_handle == BLE_GATT_HANDLE_INVALID))
         {
                 return NRF_ERROR_INVALID_STATE;
         }
         NRF_LOG_DEBUG("ble_image: ble_its_c_tx_notif_enable");
-        return cccd_configure(p_ble_its_c->conn_handle,p_ble_its_c->handles.its_tx_cccd_handle, true);
+        return cccd_configure(p_ble_its_c->conn_handle, p_ble_its_c->handles.its_tx_cccd_handle, true);
 }
 
-uint32_t ble_its_c_img_info_notif_enable(ble_its_c_t * p_ble_its_c)
+uint32_t ble_its_c_img_info_notif_enable(ble_its_c_t *p_ble_its_c)
 {
         VERIFY_PARAM_NOT_NULL(p_ble_its_c);
 
-        if ( (p_ble_its_c->conn_handle == BLE_CONN_HANDLE_INVALID)
-             ||(p_ble_its_c->handles.its_img_info_cccd_handle == BLE_GATT_HANDLE_INVALID)
-             )
+        if ((p_ble_its_c->conn_handle == BLE_CONN_HANDLE_INVALID) || (p_ble_its_c->handles.its_img_info_cccd_handle == BLE_GATT_HANDLE_INVALID))
         {
                 return NRF_ERROR_INVALID_STATE;
         }
         NRF_LOG_DEBUG("ble_image: ble_its_c_img_info_notif_enable");
-        return cccd_configure(p_ble_its_c->conn_handle,p_ble_its_c->handles.its_img_info_cccd_handle, true);
+        return cccd_configure(p_ble_its_c->conn_handle, p_ble_its_c->handles.its_img_info_cccd_handle, true);
 }
 
-uint32_t ble_its_c_string_send(ble_its_c_t * p_ble_its_c, uint8_t * p_string, uint16_t length)
+uint32_t ble_its_c_string_send(ble_its_c_t *p_ble_its_c, uint8_t *p_string, uint16_t length)
 {
         VERIFY_PARAM_NOT_NULL(p_ble_its_c);
 
@@ -415,20 +455,19 @@ uint32_t ble_its_c_string_send(ble_its_c_t * p_ble_its_c, uint8_t * p_string, ui
         ble_gattc_write_params_t const write_params =
         {
                 .write_op = BLE_GATT_OP_WRITE_CMD,
-                .flags    = BLE_GATT_EXEC_WRITE_FLAG_PREPARED_WRITE,
-                .handle   = p_ble_its_c->handles.its_rx_handle,
-                .offset   = 0,
-                .len      = length,
-                .p_value  = p_string
+                .flags = BLE_GATT_EXEC_WRITE_FLAG_PREPARED_WRITE,
+                .handle = p_ble_its_c->handles.its_rx_handle,
+                .offset = 0,
+                .len = length,
+                .p_value = p_string
         };
 
         return sd_ble_gattc_write(p_ble_its_c->conn_handle, &write_params);
 }
 
-
-uint32_t ble_its_c_handles_assign(ble_its_c_t               * p_ble_its,
+uint32_t ble_its_c_handles_assign(ble_its_c_t *p_ble_its,
                                   uint16_t conn_handle,
-                                  ble_its_c_handles_t const * p_peer_handles)
+                                  ble_its_c_handles_t const *p_peer_handles)
 {
         VERIFY_PARAM_NOT_NULL(p_ble_its);
 
@@ -436,13 +475,88 @@ uint32_t ble_its_c_handles_assign(ble_its_c_t               * p_ble_its,
         if (p_peer_handles != NULL)
         {
                 p_ble_its->handles.its_tx_cccd_handle = p_peer_handles->its_tx_cccd_handle;
-                p_ble_its->handles.its_tx_handle      = p_peer_handles->its_tx_handle;
-                p_ble_its->handles.its_rx_handle      = p_peer_handles->its_rx_handle;
+                p_ble_its->handles.its_tx_handle = p_peer_handles->its_tx_handle;
+                p_ble_its->handles.its_rx_handle = p_peer_handles->its_rx_handle;
+                p_ble_its->handles.its_rx_data_handle = p_peer_handles->its_rx_data_handle;
                 p_ble_its->handles.its_img_info_cccd_handle = p_peer_handles->its_img_info_cccd_handle;
-                p_ble_its->handles.its_img_info_handle      = p_peer_handles->its_img_info_handle;
-
+                p_ble_its->handles.its_img_info_handle = p_peer_handles->its_img_info_handle;
         }
         return NRF_SUCCESS;
 }
+
+uint32_t ble_its_c_img_info_send(ble_its_c_t *p_ble_its_c, ble_its_c_img_info_t *img_info)
+{
+
+        VERIFY_PARAM_NOT_NULL(p_ble_its_c);
+
+        uint8_t data_buf[sizeof(ble_its_c_img_info_t)];
+        uint16_t length = sizeof(ble_its_c_img_info_t);
+        memcpy(&data_buf[0], img_info, sizeof(ble_its_c_img_info_t));
+
+        ble_gattc_write_params_t const write_params =
+        {
+                .write_op = BLE_GATT_OP_WRITE_CMD,
+                .flags = BLE_GATT_EXEC_WRITE_FLAG_PREPARED_WRITE,
+                .handle = p_ble_its_c->handles.its_rx_data_handle,
+                .offset = 0,
+                .len = length,
+                .p_value = data_buf
+        };
+        return sd_ble_gattc_write(p_ble_its_c->conn_handle, &write_params);
+}
+
+uint32_t ble_its_c_send_object(ble_its_c_t *p_ble_its_c, uint8_t *p_data, uint32_t data_length, uint8_t max_packet_length)
+{
+
+        uint32_t err_code = NRF_SUCCESS;
+
+        VERIFY_PARAM_NOT_NULL(p_ble_its_c);
+
+        if (m_file_size != 0)
+        {
+                return NRF_ERROR_BUSY;
+        }
+
+        ble_its_c_img_info_t image_info;
+        image_info.file_size_bytes = data_length;
+        ble_its_c_img_info_send(p_ble_its_c, &image_info);
+
+        count = 0;
+        m_file_size = data_length;
+        m_file_pos = 0;
+        m_file_data = p_data;
+        m_max_data_length = max_packet_length;
+        m_its_c = p_ble_its_c;
+
+        err_code = push_c_data_packets();
+        if (err_code == NRF_ERROR_RESOURCES)
+                return NRF_SUCCESS;
+        return err_code;
+}
+
+uint32_t ble_its_c_send_object_fragment(ble_its_c_t *p_its_c, uint8_t *p_data, uint32_t data_length)
+{
+        uint32_t err_code;
+
+        if ((p_its_c->conn_handle == BLE_CONN_HANDLE_INVALID))
+        {
+                return NRF_ERROR_INVALID_STATE;
+        }
+
+        if (m_file_size != 0)
+        {
+                return NRF_ERROR_BUSY;
+        }
+
+        err_code = ble_its_c_string_send(p_its_c, p_data, data_length);
+        return err_code;
+}
+
+
+bool ble_its_c_file_transfer_busy(void)
+{
+        return m_file_size != 0;
+}
+
 
 #endif // NRF_MODULE_ENABLED(BLE_ITS_C)

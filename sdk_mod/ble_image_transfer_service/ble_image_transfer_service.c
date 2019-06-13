@@ -47,35 +47,41 @@
 
 #define NRF_LOG_MODULE_NAME ble_image_transfer_service
 #if BLE_ITS_CONFIG_LOG_ENABLED
-#define NRF_LOG_LEVEL       BLE_ITS_CONFIG_LOG_LEVEL
-#define NRF_LOG_INFO_COLOR  BLE_ITS_CONFIG_INFO_COLOR
+#define NRF_LOG_LEVEL BLE_ITS_CONFIG_LOG_LEVEL
+#define NRF_LOG_INFO_COLOR BLE_ITS_CONFIG_INFO_COLOR
 #define NRF_LOG_DEBUG_COLOR BLE_ITS_CONFIG_DEBUG_COLOR
 #else // BLE_ITS_CONFIG_LOG_ENABLED
-#define NRF_LOG_LEVEL       0
+#define NRF_LOG_LEVEL 0
 #endif // BLE_ITS_CONFIG_LOG_ENABLED
 #include "nrf_log.h"
 NRF_LOG_MODULE_REGISTER();
 
-
-
-#define BLE_UUID_ITS_TX_CHARACTERISTIC 0x0003                      /**< The UUID of the TX Characteristic. */
-#define BLE_UUID_ITS_RX_CHARACTERISTIC 0x0002                      /**< The UUID of the RX Characteristic. */
+#define BLE_UUID_ITS_TX_CHARACTERISTIC 0x0003 /**< The UUID of the TX Characteristic. */
+#define BLE_UUID_ITS_RX_CHARACTERISTIC 0x0002 /**< The UUID of the RX Characteristic. */
 #define BLE_UUID_ITS_IMG_INFO_CHARACTERISTIC 0x0004
+#define BLE_UUID_ITS_RX_DATA_CHARACTERISTIC 0x0005
 
-#define BLE_ITS_MAX_RX_CHAR_LEN        BLE_ITS_MAX_DATA_LEN        /**< Maximum length of the RX Characteristic (in bytes). */
-#define BLE_ITS_MAX_TX_CHAR_LEN        BLE_ITS_MAX_DATA_LEN        /**< Maximum length of the TX Characteristic (in bytes). */
+#define BLE_ITS_MAX_RX_CHAR_LEN BLE_ITS_MAX_DATA_LEN /**< Maximum length of the RX Characteristic (in bytes). */
+#define BLE_ITS_MAX_TX_CHAR_LEN BLE_ITS_MAX_DATA_LEN /**< Maximum length of the TX Characteristic (in bytes). */
 
-#define ITS_BASE_UUID                  {{0x3E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x00, 0x00, 0x40, 0x6E}} /**< Used vendor specific UUID. */
+#define ITS_BASE_UUID                                                                                                  \
+        {                                                                                                              \
+                {                                                                                                      \
+                        0x3E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x00, 0x00, 0x40, 0x6E \
+                }                                                                                                      \
+        } /**< Used vendor specific UUID. */
 
 volatile uint32_t file_size = 0, file_pos = 0, m_max_data_length = 20;
-uint8_t * file_data;
-ble_its_t * m_its;
+uint8_t *file_data;
+ble_its_t *m_its;
+
+static uint32_t count = 0;
 
 #define ITS_ENABLE_PIN_DEBUGGING 0
 
 #if (ITS_ENABLE_PIN_DEBUGGING == 1)
-#define ITS_DEBUG_PIN_SET(_pin) nrf_gpio_pin_set(DBG_PIN_ ## _pin)
-#define ITS_DEBUG_PIN_CLR(_pin) nrf_gpio_pin_clear(DBG_PIN_ ## _pin)
+#define ITS_DEBUG_PIN_SET(_pin) nrf_gpio_pin_set(DBG_PIN_##_pin)
+#define ITS_DEBUG_PIN_CLR(_pin) nrf_gpio_pin_clear(DBG_PIN_##_pin)
 #else
 #define ITS_DEBUG_PIN_SET(_pin)
 #define ITS_DEBUG_PIN_CLR(_pin)
@@ -110,44 +116,39 @@ static void its_enable_gpio_debug(void)
 #endif
 }
 
-
 /**@brief Function for handling the @ref BLE_GAP_EVT_CONNECTED event from the S110 SoftDevice.
  *
  * @param[in] p_its     Nordic UART Service structure.
  * @param[in] p_ble_evt Pointer to the event received from BLE stack.
  */
-static void on_connect(ble_its_t * p_its, ble_evt_t const * p_ble_evt)
+static void on_connect(ble_its_t *p_its, ble_evt_t const *p_ble_evt)
 {
         p_its->conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
 }
-
 
 /**@brief Function for handling the @ref BLE_GAP_EVT_DISCONNECTED event from the S110 SoftDevice.
  *
  * @param[in] p_its     Nordic UART Service structure.
  * @param[in] p_ble_evt Pointer to the event received from BLE stack.
  */
-static void on_disconnect(ble_its_t * p_its, ble_evt_t const * p_ble_evt)
+static void on_disconnect(ble_its_t *p_its, ble_evt_t const *p_ble_evt)
 {
         UNUSED_PARAMETER(p_ble_evt);
         p_its->conn_handle = BLE_CONN_HANDLE_INVALID;
 }
-
 
 /**@brief Function for handling the @ref BLE_GATTS_EVT_WRITE event from the S110 SoftDevice.
  *
  * @param[in] p_its     Nordic UART Service structure.
  * @param[in] p_ble_evt Pointer to the event received from BLE stack.
  */
-static void on_write(ble_its_t * p_its, ble_evt_t const * p_ble_evt)
+static void on_write(ble_its_t *p_its, ble_evt_t const *p_ble_evt)
 {
-        ble_gatts_evt_write_t const * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
+        ble_gatts_evt_write_t const *p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
         if (
-                (p_evt_write->handle == p_its->tx_handles.cccd_handle)
-                &&
-                (p_evt_write->len == 2)
-                )
+            (p_evt_write->handle == p_its->tx_handles.cccd_handle) &&
+            (p_evt_write->len == 2))
         {
                 if (ble_srv_is_notification_enabled(p_evt_write->data))
                 {
@@ -160,10 +161,8 @@ static void on_write(ble_its_t * p_its, ble_evt_t const * p_ble_evt)
                 }
         }
         else if (
-                (p_evt_write->handle == p_its->img_info_handles.cccd_handle)
-                &&
-                (p_evt_write->len == 2)
-                )
+            (p_evt_write->handle == p_its->img_info_handles.cccd_handle) &&
+            (p_evt_write->len == 2))
         {
                 if (ble_srv_is_notification_enabled(p_evt_write->data))
                 {
@@ -176,19 +175,33 @@ static void on_write(ble_its_t * p_its, ble_evt_t const * p_ble_evt)
                 }
         }
         else if (
-                (p_evt_write->handle == p_its->rx_handles.value_handle)
-                &&
-                (p_its->data_handler != NULL)
-                )
+            (p_evt_write->handle == p_its->rx_handles.value_handle) &&
+            (p_its->evt_handler != NULL))
         {
-                p_its->data_handler(p_its, p_evt_write->data, p_evt_write->len);
+                ble_its_evt_t its_evt;
+                its_evt.evt_type = BLE_ITS_EVT_ITS_RX_EVT;
+                NRF_LOG_DEBUG("BLE_ITS_EVT_ITS_RX_EVT len = %d", p_evt_write->len);
+                its_evt.p_data = p_evt_write->data;
+                its_evt.data_len = p_evt_write->len;
+                p_its->evt_handler(p_its, &its_evt);
+        }
+        else if (
+            (p_evt_write->handle == p_its->rx_data_handles.value_handle) &&
+            (p_its->evt_handler != NULL))
+        {
+                ble_its_evt_t its_evt;
+                its_evt.evt_type = BLE_ITS_EVT_ITS_RX_DATA_EVT;
+                NRF_LOG_DEBUG("BLE_ITS_EVT_ITS_RX_DATA_EVT len = %d", p_evt_write->len);
+                //memcpy(its_evt.p_data, p_evt_write->data, p_evt_write->len);
+                its_evt.p_data = p_evt_write->data;
+                its_evt.data_len = p_evt_write->len;
+                p_its->evt_handler(p_its, &its_evt);
         }
         else
         {
                 // Do Nothing. This event is not relevant for this service.
         }
 }
-
 
 /**@brief Function for adding TX characteristic.
  *
@@ -197,7 +210,7 @@ static void on_write(ble_its_t * p_its, ble_evt_t const * p_ble_evt)
  *
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
-static uint32_t tx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init)
+static uint32_t tx_char_add(ble_its_t *p_its, const ble_its_init_t *p_its_init)
 {
         /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
         ble_gatts_char_md_t char_md;
@@ -216,11 +229,11 @@ static uint32_t tx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init
         memset(&char_md, 0, sizeof(char_md));
 
         char_md.char_props.notify = 1;
-        char_md.p_char_user_desc  = NULL;
-        char_md.p_char_pf         = NULL;
-        char_md.p_user_desc_md    = NULL;
-        char_md.p_cccd_md         = &cccd_md;
-        char_md.p_sccd_md         = NULL;
+        char_md.p_char_user_desc = NULL;
+        char_md.p_char_pf = NULL;
+        char_md.p_user_desc_md = NULL;
+        char_md.p_cccd_md = &cccd_md;
+        char_md.p_sccd_md = NULL;
 
         ble_uuid.type = p_its->uuid_type;
         ble_uuid.uuid = BLE_UUID_ITS_TX_CHARACTERISTIC;
@@ -230,18 +243,18 @@ static uint32_t tx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init
         BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
         BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
 
-        attr_md.vloc    = BLE_GATTS_VLOC_STACK;
+        attr_md.vloc = BLE_GATTS_VLOC_STACK;
         attr_md.rd_auth = 0;
         attr_md.wr_auth = 0;
-        attr_md.vlen    = 1;
+        attr_md.vlen = 1;
 
         memset(&attr_char_value, 0, sizeof(attr_char_value));
 
-        attr_char_value.p_uuid    = &ble_uuid;
+        attr_char_value.p_uuid = &ble_uuid;
         attr_char_value.p_attr_md = &attr_md;
-        attr_char_value.init_len  = sizeof(uint8_t);
+        attr_char_value.init_len = sizeof(uint8_t);
         attr_char_value.init_offs = 0;
-        attr_char_value.max_len   = BLE_ITS_MAX_TX_CHAR_LEN;
+        attr_char_value.max_len = BLE_ITS_MAX_TX_CHAR_LEN;
 
         return sd_ble_gatts_characteristic_add(p_its->service_handle,
                                                &char_md,
@@ -257,7 +270,7 @@ static uint32_t tx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init
  *
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
-static uint32_t img_info_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init)
+static uint32_t img_info_char_add(ble_its_t *p_its, const ble_its_init_t *p_its_init)
 {
         /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
         ble_gatts_char_md_t char_md;
@@ -276,11 +289,11 @@ static uint32_t img_info_char_add(ble_its_t * p_its, const ble_its_init_t * p_it
         memset(&char_md, 0, sizeof(char_md));
 
         char_md.char_props.notify = 1;
-        char_md.p_char_user_desc  = NULL;
-        char_md.p_char_pf         = NULL;
-        char_md.p_user_desc_md    = NULL;
-        char_md.p_cccd_md         = &cccd_md;
-        char_md.p_sccd_md         = NULL;
+        char_md.p_char_user_desc = NULL;
+        char_md.p_char_pf = NULL;
+        char_md.p_user_desc_md = NULL;
+        char_md.p_cccd_md = &cccd_md;
+        char_md.p_sccd_md = NULL;
 
         ble_uuid.type = p_its->uuid_type;
         ble_uuid.uuid = BLE_UUID_ITS_IMG_INFO_CHARACTERISTIC;
@@ -290,18 +303,18 @@ static uint32_t img_info_char_add(ble_its_t * p_its, const ble_its_init_t * p_it
         BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
         BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
 
-        attr_md.vloc    = BLE_GATTS_VLOC_STACK;
+        attr_md.vloc = BLE_GATTS_VLOC_STACK;
         attr_md.rd_auth = 0;
         attr_md.wr_auth = 0;
-        attr_md.vlen    = 1;
+        attr_md.vlen = 1;
 
         memset(&attr_char_value, 0, sizeof(attr_char_value));
 
-        attr_char_value.p_uuid    = &ble_uuid;
+        attr_char_value.p_uuid = &ble_uuid;
         attr_char_value.p_attr_md = &attr_md;
-        attr_char_value.init_len  = 1 + sizeof(ble_its_img_info_t);
+        attr_char_value.init_len = 1 + sizeof(ble_its_img_info_t);
         attr_char_value.init_offs = 0;
-        attr_char_value.max_len   = 16;
+        attr_char_value.max_len = 16;
 
         return sd_ble_gatts_characteristic_add(p_its->service_handle,
                                                &char_md,
@@ -310,7 +323,6 @@ static uint32_t img_info_char_add(ble_its_t * p_its, const ble_its_init_t * p_it
         /**@snippet [Adding proprietary characteristic to S110 SoftDevice] */
 }
 
-
 /**@brief Function for adding RX characteristic.
  *
  * @param[in] p_its       Nordic UART Service structure.
@@ -318,7 +330,7 @@ static uint32_t img_info_char_add(ble_its_t * p_its, const ble_its_init_t * p_it
  *
  * @return NRF_SUCCESS on success, otherwise an error code.
  */
-static uint32_t rx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init)
+static uint32_t rx_char_add(ble_its_t *p_its, const ble_its_init_t *p_its_init)
 {
         ble_gatts_char_md_t char_md;
         ble_gatts_attr_t attr_char_value;
@@ -327,13 +339,13 @@ static uint32_t rx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init
 
         memset(&char_md, 0, sizeof(char_md));
 
-        char_md.char_props.write         = 1;
+        char_md.char_props.write = 1;
         char_md.char_props.write_wo_resp = 1;
-        char_md.p_char_user_desc         = NULL;
-        char_md.p_char_pf                = NULL;
-        char_md.p_user_desc_md           = NULL;
-        char_md.p_cccd_md                = NULL;
-        char_md.p_sccd_md                = NULL;
+        char_md.p_char_user_desc = NULL;
+        char_md.p_char_pf = NULL;
+        char_md.p_user_desc_md = NULL;
+        char_md.p_cccd_md = NULL;
+        char_md.p_sccd_md = NULL;
 
         ble_uuid.type = p_its->uuid_type;
         ble_uuid.uuid = BLE_UUID_ITS_RX_CHARACTERISTIC;
@@ -343,18 +355,18 @@ static uint32_t rx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init
         BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
         BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
 
-        attr_md.vloc    = BLE_GATTS_VLOC_STACK;
+        attr_md.vloc = BLE_GATTS_VLOC_STACK;
         attr_md.rd_auth = 0;
         attr_md.wr_auth = 0;
-        attr_md.vlen    = 1;
+        attr_md.vlen = 1;
 
         memset(&attr_char_value, 0, sizeof(attr_char_value));
 
-        attr_char_value.p_uuid    = &ble_uuid;
+        attr_char_value.p_uuid = &ble_uuid;
         attr_char_value.p_attr_md = &attr_md;
-        attr_char_value.init_len  = 1;
+        attr_char_value.init_len = 1;
         attr_char_value.init_offs = 0;
-        attr_char_value.max_len   = BLE_ITS_MAX_RX_CHAR_LEN;
+        attr_char_value.max_len = BLE_ITS_MAX_RX_CHAR_LEN;
 
         return sd_ble_gatts_characteristic_add(p_its->service_handle,
                                                &char_md,
@@ -362,7 +374,56 @@ static uint32_t rx_char_add(ble_its_t * p_its, const ble_its_init_t * p_its_init
                                                &p_its->rx_handles);
 }
 
-static uint32_t count = 0;
+/**@brief Function for adding RX characteristic.
+ *
+ * @param[in] p_its       Nordic UART Service structure.
+ * @param[in] p_its_init  Information needed to initialize the service.
+ *
+ * @return NRF_SUCCESS on success, otherwise an error code.
+ */
+static uint32_t rx_data_char_add(ble_its_t *p_its, const ble_its_init_t *p_its_init)
+{
+        ble_gatts_char_md_t char_md;
+        ble_gatts_attr_t attr_char_value;
+        ble_uuid_t ble_uuid;
+        ble_gatts_attr_md_t attr_md;
+
+        memset(&char_md, 0, sizeof(char_md));
+
+        char_md.char_props.write = 1;
+        char_md.char_props.write_wo_resp = 1;
+        char_md.p_char_user_desc = NULL;
+        char_md.p_char_pf = NULL;
+        char_md.p_user_desc_md = NULL;
+        char_md.p_cccd_md = NULL;
+        char_md.p_sccd_md = NULL;
+
+        ble_uuid.type = p_its->uuid_type;
+        ble_uuid.uuid = BLE_UUID_ITS_RX_DATA_CHARACTERISTIC;
+
+        memset(&attr_md, 0, sizeof(attr_md));
+
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.read_perm);
+        BLE_GAP_CONN_SEC_MODE_SET_OPEN(&attr_md.write_perm);
+
+        attr_md.vloc = BLE_GATTS_VLOC_STACK;
+        attr_md.rd_auth = 0;
+        attr_md.wr_auth = 0;
+        attr_md.vlen = 1;
+
+        memset(&attr_char_value, 0, sizeof(attr_char_value));
+
+        attr_char_value.p_uuid = &ble_uuid;
+        attr_char_value.p_attr_md = &attr_md;
+        attr_char_value.init_len = 1;
+        attr_char_value.init_offs = 0;
+        attr_char_value.max_len = BLE_ITS_MAX_RX_CHAR_LEN;
+
+        return sd_ble_gatts_characteristic_add(p_its->service_handle,
+                                               &char_md,
+                                               &attr_char_value,
+                                               &p_its->rx_data_handles);
+}
 
 static uint32_t push_data_packets()
 {
@@ -372,21 +433,21 @@ static uint32_t push_data_packets()
         ITS_DEBUG_PIN_SET(1);
 
         NRF_LOG_INFO("%d", count++);
-        while(return_code == NRF_SUCCESS)
+        while (return_code == NRF_SUCCESS)
         {
-                if((file_size - file_pos) > packet_length)
+                if ((file_size - file_pos) > packet_length)
                 {
                         packet_size = packet_length;
                 }
-                else if((file_size - file_pos) > 0)
+                else if ((file_size - file_pos) > 0)
                 {
                         packet_size = file_size - file_pos;
                 }
 
-                if(packet_size > 0)
+                if (packet_size > 0)
                 {
                         return_code = ble_its_string_send(m_its, &file_data[file_pos], packet_size);
-                        if(return_code == NRF_SUCCESS)
+                        if (return_code == NRF_SUCCESS)
                         {
                                 file_pos += packet_size;
                         }
@@ -403,14 +464,14 @@ static uint32_t push_data_packets()
 
 static volatile bool nrf_error_resources = false;
 
-void ble_its_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
+void ble_its_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context)
 {
         if ((p_context == NULL) || (p_ble_evt == NULL))
         {
                 return;
         }
 
-        ble_its_t * p_its = (ble_its_t*)p_context;
+        ble_its_t *p_its = (ble_its_t *)p_context;
 
         switch (p_ble_evt->header.evt_id)
         {
@@ -431,7 +492,7 @@ void ble_its_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
                 //uint32_t count = p_ble_evt->evt.gatts_evt.params.hvn_tx_complete.count;
                 ITS_DEBUG_PIN_SET(2);
                 ITS_DEBUG_PIN_CLR(1);
-                if(file_size > 0)
+                if (file_size > 0)
                 {
                         push_data_packets();
                 }
@@ -446,8 +507,7 @@ void ble_its_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
         }
 }
 
-
-uint32_t ble_its_init(ble_its_t * p_its, const ble_its_init_t * p_its_init)
+uint32_t ble_its_init(ble_its_t *p_its, const ble_its_init_t *p_its_init)
 {
         uint32_t err_code;
         ble_uuid_t ble_uuid;
@@ -457,8 +517,8 @@ uint32_t ble_its_init(ble_its_t * p_its, const ble_its_init_t * p_its_init)
         VERIFY_PARAM_NOT_NULL(p_its_init);
 
         // Initialize the service structure.
-        p_its->conn_handle             = BLE_CONN_HANDLE_INVALID;
-        p_its->data_handler            = p_its_init->data_handler;
+        p_its->conn_handle = BLE_CONN_HANDLE_INVALID;
+        p_its->evt_handler = p_its_init->evt_handler;
         p_its->is_notification_enabled = false;
 
         /**@snippet [Adding proprietary Service to S110 SoftDevice] */
@@ -480,6 +540,9 @@ uint32_t ble_its_init(ble_its_t * p_its, const ble_its_init_t * p_its_init)
         err_code = rx_char_add(p_its, p_its_init);
         VERIFY_SUCCESS(err_code);
 
+        err_code = rx_data_char_add(p_its, p_its_init);
+        VERIFY_SUCCESS(err_code);
+
         // Add the TX Characteristic.
         err_code = tx_char_add(p_its, p_its_init);
         VERIFY_SUCCESS(err_code);
@@ -492,14 +555,13 @@ uint32_t ble_its_init(ble_its_t * p_its, const ble_its_init_t * p_its_init)
         return NRF_SUCCESS;
 }
 
-
-uint32_t ble_its_string_send(ble_its_t * p_its, uint8_t * p_string, uint16_t length)
+uint32_t ble_its_string_send(ble_its_t *p_its, uint8_t *p_string, uint16_t length)
 {
         ble_gatts_hvx_params_t hvx_params;
         uint32_t err_code;
         ITS_DEBUG_PIN_SET(0);
 
-        if(nrf_error_resources)
+        if (nrf_error_resources)
         {
                 ITS_DEBUG_PIN_CLR(0);
                 return NRF_ERROR_RESOURCES;
@@ -520,12 +582,12 @@ uint32_t ble_its_string_send(ble_its_t * p_its, uint8_t * p_string, uint16_t len
         memset(&hvx_params, 0, sizeof(hvx_params));
         hvx_params.handle = p_its->tx_handles.value_handle;
         hvx_params.p_data = p_string;
-        hvx_params.p_len  = &length;
-        hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+        hvx_params.p_len = &length;
+        hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
 
         err_code = sd_ble_gatts_hvx(p_its->conn_handle, &hvx_params);
 
-        if(err_code == NRF_ERROR_RESOURCES)
+        if (err_code == NRF_ERROR_RESOURCES)
         {
                 nrf_error_resources = true;
                 ITS_DEBUG_PIN_SET(1);
@@ -535,7 +597,7 @@ uint32_t ble_its_string_send(ble_its_t * p_its, uint8_t * p_string, uint16_t len
         return err_code;
 }
 
-uint32_t ble_its_ble_params_info_send(ble_its_t * p_its, ble_its_ble_params_info_t * ble_params_info)
+uint32_t ble_its_ble_params_info_send(ble_its_t *p_its, ble_its_ble_params_info_t *ble_params_info)
 {
         uint8_t data_buf[1 + sizeof(ble_its_ble_params_info_t)];
         ble_gatts_hvx_params_t hvx_params;
@@ -556,13 +618,13 @@ uint32_t ble_its_ble_params_info_send(ble_its_t * p_its, ble_its_ble_params_info
 
         hvx_params.handle = p_its->img_info_handles.value_handle;
         hvx_params.p_data = data_buf;
-        hvx_params.p_len  = &length;
-        hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+        hvx_params.p_len = &length;
+        hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
 
         return sd_ble_gatts_hvx(p_its->conn_handle, &hvx_params);
 }
 
-uint32_t ble_its_img_info_send(ble_its_t * p_its, ble_its_img_info_t * img_info)
+uint32_t ble_its_img_info_send(ble_its_t *p_its, ble_its_img_info_t *img_info)
 {
         uint8_t data_buf[1 + sizeof(ble_its_img_info_t)];
         ble_gatts_hvx_params_t hvx_params;
@@ -583,14 +645,13 @@ uint32_t ble_its_img_info_send(ble_its_t * p_its, ble_its_img_info_t * img_info)
 
         hvx_params.handle = p_its->img_info_handles.value_handle;
         hvx_params.p_data = data_buf;
-        hvx_params.p_len  = &length;
-        hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+        hvx_params.p_len = &length;
+        hvx_params.type = BLE_GATT_HVX_NOTIFICATION;
 
         return sd_ble_gatts_hvx(p_its->conn_handle, &hvx_params);
 }
 
-
-uint32_t ble_its_send_file(ble_its_t * p_its, uint8_t * p_data, uint32_t data_length, uint32_t max_packet_length)
+uint32_t ble_its_send_file(ble_its_t *p_its, uint8_t *p_data, uint32_t data_length, uint32_t max_packet_length)
 {
         uint32_t err_code;
 
@@ -599,7 +660,7 @@ uint32_t ble_its_send_file(ble_its_t * p_its, uint8_t * p_data, uint32_t data_le
                 return NRF_ERROR_INVALID_STATE;
         }
 
-        if(file_size != 0)
+        if (file_size != 0)
         {
                 return NRF_ERROR_BUSY;
         }
@@ -615,12 +676,12 @@ uint32_t ble_its_send_file(ble_its_t * p_its, uint8_t * p_data, uint32_t data_le
         m_its = p_its;
 
         err_code = push_data_packets();
-        if(err_code == NRF_ERROR_RESOURCES) return NRF_SUCCESS;
+        if (err_code == NRF_ERROR_RESOURCES)
+                return NRF_SUCCESS;
         return err_code;
 }
 
-
-uint32_t ble_its_send_file_fragment(ble_its_t * p_its, uint8_t * p_data, uint32_t data_length)
+uint32_t ble_its_send_file_fragment(ble_its_t *p_its, uint8_t *p_data, uint32_t data_length)
 {
         uint32_t err_code;
 
@@ -629,7 +690,7 @@ uint32_t ble_its_send_file_fragment(ble_its_t * p_its, uint8_t * p_data, uint32_
                 return NRF_ERROR_INVALID_STATE;
         }
 
-        if(file_size != 0)
+        if (file_size != 0)
         {
                 return NRF_ERROR_BUSY;
         }
@@ -637,7 +698,6 @@ uint32_t ble_its_send_file_fragment(ble_its_t * p_its, uint8_t * p_data, uint32_
         err_code = ble_its_string_send(p_its, p_data, data_length);
         return err_code;
 }
-
 
 bool ble_its_file_transfer_busy(void)
 {

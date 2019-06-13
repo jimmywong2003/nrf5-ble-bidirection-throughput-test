@@ -127,8 +127,9 @@
 
 
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_PERIPHERAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
+BLE_ITS_DEF(m_its, NRF_SDH_BLE_PERIPHERAL_LINK_COUNT);                          /**< BLE IMAGE TRANSFER service instance. */
+
 BLE_LBS_DEF(m_lbs);                                                             /**< LED Button Service instance. */
-BLE_ITS_DEF(m_its, NRF_SDH_BLE_PERIPHERAL_LINK_COUNT); /**< BLE IMAGE TRANSFER service instance. */
 
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
@@ -241,16 +242,36 @@ static void gap_params_init(void)
         APP_ERROR_CHECK(err_code);
 }
 
+static uint32_t received_count = 0;
+static uint32_t received_bytes = 0;
 
-static void its_data_handler(ble_its_t *p_its, uint8_t const *p_data, uint16_t length)
+static void its_evt_handler(ble_its_t *p_its, ble_its_evt_t const * p_its_evt)
 {
-        //if (p_evt->type == BLE_ITS_EVT_RX_DATA)
-        {
+    switch (p_its_evt->evt_type)
+    {
+        case BLE_ITS_EVT_ITS_RX_EVT:
 
+            //NRF_LOG_INFO("BLE_ITS_EVT_ITS_RX_EVT, len = %d", p_its_evt->data_len);
+            //NRF_LOG_HEXDUMP_INFO(p_its_evt->p_data, p_its_evt->data_len);
+            received_bytes += p_its_evt->data_len;
+            NRF_LOG_INFO("count = %x, %x", received_count++, received_bytes);
 
-        }
+        break;
+
+        case BLE_ITS_EVT_ITS_RX_DATA_EVT:
+            
+            NRF_LOG_INFO("BLE_ITS_EVT_ITS_RX_DATA_EVT");
+            //NRF_LOG_HEXDUMP_INFO(p_its_evt->p_data, p_its_evt->data_len);
+            {
+                        ble_its_img_info_t image_info;
+                        memcpy(&image_info, p_its_evt->p_data, p_its_evt->data_len);
+                        NRF_LOG_INFO("Image file = %04x", image_info.file_size_bytes);
+                        NRF_LOG_INFO("Image CRC32 = %04x", image_info.crc32);
+            }
+
+        break;
+    }
 }
-
 
 /**@brief Function for handling the data from the Nordic UART Service.
  *
@@ -535,7 +556,7 @@ static void services_init(void)
         // Initialize ITS.
         memset(&its_init, 0, sizeof(its_init));
 
-        its_init.data_handler = its_data_handler;
+        its_init.evt_handler = its_evt_handler;
 
         err_code = ble_its_init(&m_its, &its_init);
         APP_ERROR_CHECK(err_code);
@@ -814,7 +835,6 @@ static void idle_state_handle(void)
 {
         app_sched_execute();
         while(NRF_LOG_PROCESS());
-        //UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
         nrf_pwr_mgmt_run();
 }
 
@@ -830,7 +850,6 @@ int main(void)
         /* enable instruction cache */
         NRF_NVMC->ICACHECNF = (NVMC_ICACHECNF_CACHEEN_Enabled << NVMC_ICACHECNF_CACHEEN_Pos) +
                               (NVMC_ICACHECNF_CACHEPROFEN_Disabled << NVMC_ICACHECNF_CACHEPROFEN_Pos);
-
 
         // Initialize.
         log_init();

@@ -80,7 +80,7 @@ extern "C" {
         BLE_LINK_CTX_MANAGER_DEF(CONCAT_2(_name, _link_ctx_storage),  \
                                  (_its_max_clients),                  \
                                  sizeof(ble_its_client_context_t)); \
-static ble_its_t _name = {0, 0, {0,0,0,0},{0,0,0,0},{0,0,0,0}, \
+static ble_its_t _name = {0, 0, {0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}, \
                           0, 0, 0,                            \
                           &CONCAT_2(_name, _link_ctx_storage)};\
 NRF_SDH_BLE_OBSERVER(_name ## _obs,                           \
@@ -106,12 +106,30 @@ NRF_SDH_BLE_OBSERVER(_name ## _obs,                           \
 #define DBG_PIN_3 3
 #define DBG_PIN_4 4
 
+typedef enum
+{
+        BLE_ITS_EVT_ITS_TX_EVT,       /**< Event indicating that the central has received something from a peer. */
+        BLE_ITS_EVT_ITS_RX_EVT,       /**< Event indicating that the central has received something from a peer. */
+        BLE_ITS_EVT_ITS_RX_DATA_EVT,     /**< Event indicating that the central has written to peripheral. */
+        BLE_ITS_EVT_ITS_RX_COMPLETE_EVT,       /**< Event indicating that the central has written to peripheral completely. */
+        BLE_ITS_EVT_ITS_IMG_INFO_EVT,       /**< Event indicating that the central has received something from a peer. */
+        BLE_ITS_EVT_DISCONNECTED      /**< Event indicating that the NUS server has disconnected. */
+} ble_its_evt_type_t;
+
+/**@brief Structure containing the NUS event data received from the peer. */
+typedef struct
+{
+        ble_its_evt_type_t evt_type;
+        uint8_t * p_data;
+        uint16_t data_len;
+} ble_its_evt_t;
 
 /* Forward declaration of the ble_its_t type. */
 typedef struct ble_its_s ble_its_t;
 
 /**@brief Nordic IMAGE TRANSFER Service event handler type. */
-typedef void (*ble_its_data_handler_t) (ble_its_t * p_its, uint8_t const * p_data, uint16_t length);
+typedef void (* ble_its_evt_handler_t)(ble_its_t * p_ble_its, ble_its_evt_t const * p_evt);
+
 
 /**@brief Nordic IMAGE TRANSFER Service client context structure.
  *
@@ -130,7 +148,7 @@ typedef struct
  */
 typedef struct
 {
-        ble_its_data_handler_t data_handler; /**< Event handler to be called for handling received data. */
+        ble_its_evt_handler_t evt_handler; /**< Event handler to be called for handling received data. */
 } ble_its_init_t;
 
 /**@brief Nordic IMAGE TRANSFER Service structure.
@@ -138,22 +156,25 @@ typedef struct
  * @details This structure contains status information related to the service.
  */
 struct ble_its_s
-{
+{       
         uint8_t uuid_type;                            /**< UUID type for Nordic IMAGE TRANSFER Service Base UUID. */
         uint16_t service_handle;                      /**< Handle of Nordic IMAGE TRANSFER Service (as provided by the SoftDevice). */
         ble_gatts_char_handles_t tx_handles;          /**< Handles related to the TX characteristic (as provided by the SoftDevice). */
         ble_gatts_char_handles_t rx_handles;          /**< Handles related to the RX characteristic (as provided by the SoftDevice). */
+        ble_gatts_char_handles_t rx_data_handles;          /**< Handles related to the RX characteristic (as provided by the SoftDevice). */
         ble_gatts_char_handles_t img_info_handles;
         uint16_t conn_handle;                         /**< Handle of the current connection (as provided by the SoftDevice). BLE_CONN_HANDLE_INVALID if not in a connection. */
         bool is_notification_enabled;                 /**< Variable to indicate if the peer has enabled notification of the RX characteristic.*/
         bool is_info_char_notification_enabled;
         blcm_link_ctx_storage_t * const p_link_ctx_storage;
-        ble_its_data_handler_t data_handler;          /**< Event handler to be called for handling received data. */
+        //ble_its_data_handler_t data_handler;          /**< Event handler to be called for handling received data. */
+        ble_its_evt_handler_t evt_handler;
 };
 
 typedef struct ble_its_img_info_s
 {
         uint32_t file_size_bytes;
+        uint32_t crc32;
 
 } ble_its_img_info_t;
 
