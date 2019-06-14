@@ -1,6 +1,8 @@
 # nrf5-ble-throughput-test
 
-This is the example how to communication between central and peripheral with maximum throughput.
+This example is to demonstrate how to send the data as fast as possible.
+* from Central to Peripheral 
+* from Peripheral to Central 
 
 ## Requirement
 
