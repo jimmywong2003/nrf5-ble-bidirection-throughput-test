@@ -173,8 +173,6 @@ uint32_t ble_its_c_tx_notif_enable(ble_its_c_t * p_ble_its_c);
 
 uint32_t ble_its_c_img_info_notif_enable(ble_its_c_t * p_ble_its_c);
 
-// uint32_t ble_its_c_string_send(ble_its_c_t * p_ble_its_c, uint8_t * p_string, uint16_t length);
-
 uint32_t ble_its_c_handles_assign(ble_its_c_t *               p_ble_its_c,
                                   uint16_t conn_handle,
                                   ble_its_c_handles_t const * p_peer_handles);

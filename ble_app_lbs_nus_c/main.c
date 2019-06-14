@@ -80,6 +80,13 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#define SCHED_MAX_EVENT_DATA_SIZE APP_TIMER_SCHED_EVENT_DATA_SIZE /**< Maximum size of scheduler events. */
+#ifdef SVCALL_AS_NORMAL_FUNCTION
+#define SCHED_QUEUE_SIZE 20 /**< Maximum number of events in the scheduler queue. More is needed in case of Serialization. */
+#else
+#define SCHED_QUEUE_SIZE 10 /**< Maximum number of events in the scheduler queue. */
+#endif
+
 #define APP_BLE_CONN_CFG_TAG 1  /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO 3 /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 
@@ -94,26 +101,18 @@
 #define SCAN_WINDOW 0x0050   /**< Determines scan window in units of 0.625 millisecond. */
 #define SCAN_DURATION 0x0000 /**< Timout when scanning. 0x0000 disables timeout. */
 
-#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(50, UNIT_1_25_MS)  /**< Determines minimum connection interval in milliseconds. */
-#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(400, UNIT_1_25_MS) /**< Determines maximum connection interval in milliseconds. */
+#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS)  /**< Determines minimum connection interval in milliseconds. */
+#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Determines maximum connection interval in milliseconds. */
 #define SLAVE_LATENCY 0                                          /**< Determines slave latency in terms of connection events. */
-#define SUPERVISION_TIMEOUT MSEC_TO_UNITS(4000, UNIT_10_MS)      /**< Determines supervision time-out in units of 10 milliseconds. */
+#define SUPERVISION_TIMEOUT MSEC_TO_UNITS(6000, UNIT_10_MS)      /**< Determines supervision time-out in units of 10 milliseconds. */
 
 #define LEDBUTTON_BUTTON_PIN BSP_BUTTON_0 /**< Button that will write to the LED characteristic of the peer */
 #define SEND_INFO_BUTTON_PIN BSP_BUTTON_3
 
-
 #define BUTTON_DETECTION_DELAY APP_TIMER_TICKS(50) /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
 
-#define SCHED_MAX_EVENT_DATA_SIZE APP_TIMER_SCHED_EVENT_DATA_SIZE /**< Maximum size of scheduler events. */
-#ifdef SVCALL_AS_NORMAL_FUNCTION
-#define SCHED_QUEUE_SIZE 20 /**< Maximum number of events in the scheduler queue. More is needed in case of Serialization. */
-#else
-#define SCHED_QUEUE_SIZE 10 /**< Maximum number of events in the scheduler queue. */
-#endif
-
 #define ECHOBACK_BLE_UART_DATA 0 /**< Echo the UART data that is received over the Nordic UART Service (NUS) back to the sender. */
-#define TX_POWER_LEVEL (8)       /**< TX Power Level value. This will be set both in the TX Power service, in the advertising data, and also used to set the radio transmit power. */
+#define TX_POWER_LEVEL (0)       /**< TX Power Level value. This will be set both in the TX Power service, in the advertising data, and also used to set the radio transmit power. */
 
 NRF_BLE_SCAN_DEF(m_scan); /**< Scanning module instance. */
 NRF_BLE_GATT_DEF(m_gatt); /**< GATT module instance. */
@@ -133,7 +132,8 @@ static char const m_target_periph_name[] = "LBS_NUS_Node"; /**< Name of the devi
 
 static serial_file_object_t m_file_object = {0};
 
-static void PrepareDataSent(void) {
+static void PrepareDataSent(void)
+{
         uint32_t data_length = sizeof(nrf52);
         memset(&m_file_object, 0, sizeof(serial_file_object_t));
         m_file_object.filesize = data_length;
@@ -143,11 +143,6 @@ static void PrepareDataSent(void) {
         NRF_LOG_INFO("File size = %08x", m_file_object.filesize);
         NRF_LOG_INFO("file object crc32 = %04x", m_file_object.crc32);
 }
-
-/*******************************************************
-      Channel Survey testing
-
-*******************************************************/
 
 /**@brief Function to handle asserts in the SoftDevice.
  *
@@ -244,10 +239,10 @@ void uart_event_handle(app_uart_evt_t *p_event)
                                 for (uint32_t i = 0; i < NRF_SDH_BLE_CENTRAL_LINK_COUNT; i++)
                                 {
                                         ret_val = ble_nus_c_string_send(&m_ble_nus_c[i], data_array, index);
-                                        //                                        if ( (ret_val != NRF_ERROR_INVALID_STATE) && (ret_val != NRF_ERROR_RESOURCES) )
-                                        //                                        {
-                                        //                                                APP_ERROR_CHECK(ret_val);
-                                        //                                        }
+                                        //   if ( (ret_val != NRF_ERROR_INVALID_STATE) && (ret_val != NRF_ERROR_RESOURCES) )
+                                        //   {
+                                        //          APP_ERROR_CHECK(ret_val);
+                                        //   }
                                 }
                         } while (ret_val == NRF_ERROR_RESOURCES);
 
@@ -319,7 +314,7 @@ static void lbs_c_evt_handler(ble_lbs_c_t *p_lbs_c, ble_lbs_c_evt_t *p_lbs_c_evt
                 APP_ERROR_CHECK(err_code);
 
                 NRF_LOG_DEBUG("Enable the LBS button notification");
-                NRF_LOG_HEXDUMP_DEBUG(p_lbs_c, sizeof(ble_lbs_c_t));
+                // NRF_LOG_HEXDUMP_DEBUG(p_lbs_c, sizeof(ble_lbs_c_t));
 
                 // LED Button service discovered. Enable notification of Button.
                 err_code = ble_lbs_c_button_notif_enable(p_lbs_c);
@@ -378,8 +373,13 @@ static void ble_its_c_evt_handler(ble_its_c_t *p_ble_its_c, ble_its_c_evt_t cons
                 break;
 
         case BLE_ITS_C_EVT_ITS_IMG_INFO_EVT:
-                NRF_LOG_INFO("ITS Image Info: the number of bytes = %04d", receive_byte);
+                //NRF_LOG_INFO("ITS Image Info: the number of bytes = %04d", receive_byte);
                 //NRF_LOG_DEBUG("BLE_ITS_C_EVT_ITS_IMG_INFO_EVT %04d", receive_byte);
+                break;
+
+        case BLE_ITS_C_EVT_ITS_RX_COMPLETE_EVT:
+                NRF_LOG_INFO("RX COMPLETE");
+//                NRF_LOG_INFO("Data is sent!");
                 break;
 
         case BLE_ITS_C_EVT_DISCONNECTED:
@@ -478,10 +478,10 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
         {
                 NRF_LOG_DEBUG("PHY update request.");
                 ble_gap_phys_t const phys =
-                {
+                    {
                         .rx_phys = BLE_GAP_PHY_AUTO,
                         .tx_phys = BLE_GAP_PHY_AUTO,
-                };
+                    };
                 err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
                 APP_ERROR_CHECK(err_code);
         }
@@ -523,15 +523,14 @@ static void uart_init(void)
         ret_code_t err_code;
 
         app_uart_comm_params_t const comm_params =
-        {
+            {
                 .rx_pin_no = RX_PIN_NUMBER,
                 .tx_pin_no = TX_PIN_NUMBER,
                 .rts_pin_no = RTS_PIN_NUMBER,
                 .cts_pin_no = CTS_PIN_NUMBER,
                 .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
                 .use_parity = false,
-                .baud_rate = UART_BAUDRATE_BAUDRATE_Baud115200
-        };
+                .baud_rate = UART_BAUDRATE_BAUDRATE_Baud115200};
 
         APP_UART_FIFO_INIT(&comm_params,
                            UART_RX_BUF_SIZE,
@@ -726,7 +725,7 @@ static void scan_evt_handler(scan_evt_t const *p_scan_evt)
         case NRF_BLE_SCAN_EVT_CONNECTED:
         {
                 ble_gap_evt_connected_t const *p_connected =
-                        p_scan_evt->params.connected.p_connected;
+                    p_scan_evt->params.connected.p_connected;
                 // Scan is automatically stopped by the connection.
                 NRF_LOG_INFO("Connecting to target 0x%02x%02x%02x%02x%02x%02x",
                              p_connected->peer_addr.addr[0],
@@ -757,10 +756,10 @@ static void buttons_init(void)
 
         //The array must be static because a pointer to it will be saved in the button handler module.
         static app_button_cfg_t buttons[] =
-        {
+            {
                 {LEDBUTTON_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
                 {SEND_INFO_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
-        };
+            };
 
         err_code = app_button_init(buttons, ARRAY_SIZE(buttons),
                                    BUTTON_DETECTION_DELAY);
