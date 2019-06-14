@@ -57,7 +57,7 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
 }
 
 
-void counter_init(void)
+void  counter_init(void)
 {
     ret_code_t err_code;
 

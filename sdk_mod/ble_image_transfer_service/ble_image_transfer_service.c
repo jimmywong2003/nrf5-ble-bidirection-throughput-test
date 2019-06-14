@@ -56,6 +56,7 @@
 #include "nrf_log.h"
 NRF_LOG_MODULE_REGISTER();
 
+#define BLE_UUID_ITS_SERVICE     0x0001
 #define BLE_UUID_ITS_TX_CHARACTERISTIC 0x0003 /**< The UUID of the TX Characteristic. */
 #define BLE_UUID_ITS_RX_CHARACTERISTIC 0x0002 /**< The UUID of the RX Characteristic. */
 #define BLE_UUID_ITS_IMG_INFO_CHARACTERISTIC 0x0004
@@ -70,6 +71,8 @@ NRF_LOG_MODULE_REGISTER();
                         0x3E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x00, 0x00, 0x40, 0x6E \
                 }                                                                                                      \
         } /**< Used vendor specific UUID. */
+
+
 
 volatile uint32_t file_size = 0, file_pos = 0, m_max_data_length = 20;
 uint8_t *file_data;
