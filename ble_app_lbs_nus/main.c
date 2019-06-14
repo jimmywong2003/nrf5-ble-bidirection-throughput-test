@@ -61,9 +61,10 @@
 #include "app_timer.h"
 #include "app_button.h"
 
-#include "counter.h"
+
 #include "nrf52_dk.h"
 #include "app_object.h"
+#include "counter.h"
 
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
