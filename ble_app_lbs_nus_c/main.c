@@ -71,9 +71,9 @@
 
 #include "app_scheduler.h"
 
-#include "channel_survey.h"
-
 #include "app_object.h"
+#include "counter.h"
+
 #include "nrf52_dk.h"
 
 #include "nrf_log.h"
@@ -101,7 +101,7 @@
 #define SCAN_WINDOW 0x0050   /**< Determines scan window in units of 0.625 millisecond. */
 #define SCAN_DURATION 0x0000 /**< Timout when scanning. 0x0000 disables timeout. */
 
-#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS)  /**< Determines minimum connection interval in milliseconds. */
+#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Determines minimum connection interval in milliseconds. */
 #define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Determines maximum connection interval in milliseconds. */
 #define SLAVE_LATENCY 0                                          /**< Determines slave latency in terms of connection events. */
 #define SUPERVISION_TIMEOUT MSEC_TO_UNITS(6000, UNIT_10_MS)      /**< Determines supervision time-out in units of 10 milliseconds. */
@@ -131,6 +131,8 @@ static uint16_t m_ble_its_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - OPCODE_LENGT
 static char const m_target_periph_name[] = "LBS_NUS_Node"; /**< Name of the device we try to connect to. This name is searched in the scan report data*/
 
 static serial_file_object_t m_file_object = {0};
+
+static uint32_t m_counter_get = 0;
 
 static void PrepareDataSent(void)
 {
@@ -379,7 +381,22 @@ static void ble_its_c_evt_handler(ble_its_c_t *p_ble_its_c, ble_its_c_evt_t cons
 
         case BLE_ITS_C_EVT_ITS_RX_COMPLETE_EVT:
                 NRF_LOG_INFO("RX COMPLETE");
-//                NRF_LOG_INFO("Data is sent!");
+                // m_counter_get = counter_get();
+                counter_stop();
+                uint32_t time_ms = counter_get();
+                uint32_t bit_count = (m_file_object.filesize * 8);
+                float throughput_kbps = ((bit_count / (time_ms / 1000.f)) / 1000.f);
+
+                NRF_LOG_INFO("Done.");
+                NRF_LOG_INFO("=============================");
+                NRF_LOG_INFO("Time: %u.%.2u seconds elapsed.", (time_ms / 1000), (time_ms % 1000));
+                NRF_LOG_INFO("Throughput: " NRF_LOG_FLOAT_MARKER " Kbps.",
+                             NRF_LOG_FLOAT(throughput_kbps));
+                NRF_LOG_INFO("=============================");
+                NRF_LOG_INFO("Sent %u bytes of ATT payload.", m_file_object.filesize);
+                NRF_LOG_INFO("Retrieving amount of bytes received from peer...");
+                //                NRF_LOG_INFO("Data is sent!");
+
                 break;
 
         case BLE_ITS_C_EVT_DISCONNECTED:
@@ -695,6 +712,8 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                 if (button_action == APP_BUTTON_RELEASE)
                 {
                         PrepareDataSent();
+
+                        counter_start();
                         err_code = ble_its_c_send_object(&m_ble_its_c[0], nrf52, sizeof(nrf52), m_ble_its_max_data_len);
                         APP_ERROR_CHECK(err_code);
                 }
@@ -901,6 +920,7 @@ int main(void)
         log_init();
         uart_init();
         timer_init();
+        counter_init();
         leds_init();
         buttons_init();
         power_management_init();

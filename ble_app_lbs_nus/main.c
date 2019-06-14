@@ -61,6 +61,10 @@
 #include "app_timer.h"
 #include "app_button.h"
 
+#include "counter.h"
+#include "nrf52_dk.h"
+#include "app_object.h"
+
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
@@ -71,6 +75,8 @@
 #include "ble_lbs.h"
 #include "ble_nus.h"
 #include "ble_image_transfer_service.h"
+
+
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -241,13 +247,10 @@ static void its_evt_handler(ble_its_t *p_its, ble_its_evt_t const *p_its_evt)
         switch (p_its_evt->evt_type)
         {
         case BLE_ITS_EVT_ITS_RX_EVT:
-
-                //NRF_LOG_INFO("BLE_ITS_EVT_ITS_RX_EVT, len = %d", p_its_evt->data_len);
-                //NRF_LOG_HEXDUMP_INFO(p_its_evt->p_data, p_its_evt->data_len);
-                //received_bytes += p_its_evt->data_len;
+        
+                // Read the object header
                 received_bytes = 0;
                 received_count = 0;
-                //NRF_LOG_INFO("count = %x, %x", received_count++, received_bytes);
                 {
                         ble_its_img_info_t image_info;
                         memcpy(&image_info, p_its_evt->p_data, p_its_evt->data_len);
@@ -260,13 +263,6 @@ static void its_evt_handler(ble_its_t *p_its, ble_its_evt_t const *p_its_evt)
                 received_bytes += p_its_evt->data_len;
                 NRF_LOG_INFO("count = %x, %x", received_count++, received_bytes);
                 //NRF_LOG_INFO("BLE_ITS_EVT_ITS_RX_DATA_EVT");
-//                NRF_LOG_HEXDUMP_DEBUG(p_its_evt->p_data, p_its_evt->data_len);
-                // {
-                //         ble_its_img_info_t image_info;
-                //         memcpy(&image_info, p_its_evt->p_data, p_its_evt->data_len);
-                //         NRF_LOG_INFO("Image file = %04x", image_info.file_size_bytes);
-                //         NRF_LOG_INFO("Image CRC32 = %04x", image_info.crc32);
-                // }
                 break;
 
         default:
@@ -337,9 +333,6 @@ void gatt_evt_handler(nrf_ble_gatt_t *p_gatt, nrf_ble_gatt_evt_t const *p_evt)
                 m_ble_nus_max_data_len = data_length;
                 NRF_LOG_INFO("gatt_event: Data len is set to 0x%X (%d)", data_length, data_length);
         }
-        //NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
-        //            p_gatt->att_mtu_desired_central,
-        //        p_gatt->att_mtu_desired_periph);
 }
 
 /**@brief Function for initializing the GATT module.

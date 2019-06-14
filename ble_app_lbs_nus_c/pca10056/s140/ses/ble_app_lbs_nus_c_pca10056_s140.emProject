@@ -83,6 +83,7 @@
       <file file_name="../../../../../../modules/nrfx/drivers/src/prs/nrfx_prs.c" />
       <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_uart.c" />
       <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_uarte.c" />
+      <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_rtc.c" />
     </folder>
     <folder Name="Board Support">
       <file file_name="../../../../../../components/libraries/bsp/bsp.c" />
@@ -122,6 +123,7 @@
     <folder Name="Module">
       <file file_name="../../../../module/channel_survey.c" />
       <file file_name="../../../../module/app_object.c" />
+      <file file_name="../../../../module/counter.c" />
     </folder>
     <configuration
       Name="Release"
