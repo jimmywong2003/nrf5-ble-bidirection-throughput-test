@@ -377,7 +377,6 @@ void ble_its_c_on_ble_evt(ble_evt_t const *p_ble_evt, void *p_context)
                         ble_its_c_evt_t its_c_evt;
                         its_c_evt.evt_type = BLE_ITS_C_EVT_ITS_RX_COMPLETE_EVT;
                         p_ble_its_c->evt_handler(p_ble_its_c, &its_c_evt);
-                        //NRF_LOG_INFO("Sent Complete!");
                 }
                 nrf_error_resources = false;
                 break;
@@ -489,9 +488,9 @@ uint32_t ble_its_c_send_object(ble_its_c_t *p_ble_its_c, uint8_t *p_data, uint32
                 return NRF_ERROR_BUSY;
         }
 
-        ble_its_c_img_info_t image_info;
-        image_info.file_size_bytes = data_length;
-        ble_its_c_img_info_send(p_ble_its_c, &image_info);
+//        ble_its_c_img_info_t image_info;
+//        image_info.file_size_bytes = data_length;
+//        ble_its_c_img_info_send(p_ble_its_c, &image_info);
 
         count = 0;
         m_file_size = data_length;

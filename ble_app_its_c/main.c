@@ -129,6 +129,9 @@ static serial_file_object_t m_file_object = {0};
 
 static uint32_t m_counter_get = 0;
 
+
+static 
+
 static void PrepareDataSent(void)
 {
         uint32_t data_length = sizeof(nrf52);

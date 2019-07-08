@@ -103,12 +103,12 @@
 #define APP_ADV_INTERVAL 64                                    /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
 #define APP_ADV_DURATION BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED /**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 
-#define MIN_CONN_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Minimum acceptable connection interval (0.5 seconds). */
-#define MAX_CONN_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Maximum acceptable connection interval (1 second). */
+#define MIN_CONN_INTERVAL MSEC_TO_UNITS(20, UNIT_1_25_MS) /**< Minimum acceptable connection interval (0.5 seconds). */
+#define MAX_CONN_INTERVAL MSEC_TO_UNITS(20, UNIT_1_25_MS) /**< Maximum acceptable connection interval (1 second). */
 #define SLAVE_LATENCY 0                                    /**< Slave latency. */
 #define CONN_SUP_TIMEOUT MSEC_TO_UNITS(6000, UNIT_10_MS)   /**< Connection supervisory time-out (4 seconds). */
 
-#define FIRST_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(50000) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(200000) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(20000)  /**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT 3                        /**< Number of attempts before giving up the connection parameter negotiation. */
 
@@ -255,7 +255,6 @@ static void its_evt_handler(ble_its_t *p_its, ble_its_evt_t const *p_its_evt)
                 received_bytes = 0;
                 received_count = 0;
                 {
-
                         ble_its_img_info_t image_info;
                         serial_file_object_t *p_file_object = (serial_file_object_t *)p_its_evt->p_data;
                         NRF_LOG_INFO("Image file = %04x", p_file_object->filesize);
@@ -267,13 +266,9 @@ static void its_evt_handler(ble_its_t *p_its, ble_its_evt_t const *p_its_evt)
                 
                 NRF_LOG_INFO("count = %x, %x", received_count++, received_bytes);
                 //NRF_LOG_INFO("BLE_ITS_EVT_ITS_RX_DATA_EVT");
-                NRF_LOG_HEXDUMP_INFO(p_its_evt->p_data, p_its_evt->data_len);
+                //NRF_LOG_HEXDUMP_INFO(p_its_evt->p_data, p_its_evt->data_len);
                 memcpy((uint8_t *)receiveBuffer+received_bytes, p_its_evt->p_data, p_its_evt->data_len);
                 received_bytes += p_its_evt->data_len;
-//                for (int i=0; i < p_its_evt->data_len; i++)
-//                {
-//                    app_uart_put(p_its_evt->p_data[i]);
-//                }
                 break;
 
         default:
@@ -657,7 +652,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                 break;
 
         case BLE_GAP_EVT_DISCONNECTED:
-                NRF_LOG_INFO("Connection 0x%x has been disconnected. Reason: 0x%X",
+                NRF_LOG_INFO("\n\nConnection 0x%x has been disconnected. Reason: 0x%X\n\n",
                              p_gap_evt->conn_handle,
                              p_gap_evt->params.disconnected.reason);
                 bsp_board_led_off(CONNECTED_LED);

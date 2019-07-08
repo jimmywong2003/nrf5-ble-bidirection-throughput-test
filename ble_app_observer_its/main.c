@@ -101,8 +101,8 @@
 #define SCAN_WINDOW 0x0050   /**< Determines scan window in units of 0.625 millisecond. */
 #define SCAN_DURATION 0x0000 /**< Timout when scanning. 0x0000 disables timeout. */
 
-#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Determines minimum connection interval in milliseconds. */
-#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Determines maximum connection interval in milliseconds. */
+#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(20, UNIT_1_25_MS) /**< Determines minimum connection interval in milliseconds. */
+#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(20, UNIT_1_25_MS) /**< Determines maximum connection interval in milliseconds. */
 #define SLAVE_LATENCY 0                                          /**< Determines slave latency in terms of connection events. */
 #define SUPERVISION_TIMEOUT MSEC_TO_UNITS(6000, UNIT_10_MS)      /**< Determines supervision time-out in units of 10 milliseconds. */
 
@@ -375,8 +375,7 @@ static void ble_its_c_evt_handler(ble_its_c_t *p_ble_its_c, ble_its_c_evt_t cons
                 break;
 
         case BLE_ITS_C_EVT_ITS_IMG_INFO_EVT:
-                //NRF_LOG_INFO("ITS Image Info: the number of bytes = %04d", receive_byte);
-                //NRF_LOG_DEBUG("BLE_ITS_C_EVT_ITS_IMG_INFO_EVT %04d", receive_byte);
+                NRF_LOG_INFO("ITS Image Info: the number of bytes = %04d", receive_byte);
                 break;
 
         case BLE_ITS_C_EVT_ITS_RX_COMPLETE_EVT:
@@ -394,7 +393,7 @@ static void ble_its_c_evt_handler(ble_its_c_t *p_ble_its_c, ble_its_c_evt_t cons
                              NRF_LOG_FLOAT(throughput_kbps));
                 NRF_LOG_INFO("=============================");
                 NRF_LOG_INFO("Sent %u bytes of ATT payload.", m_file_object.filesize);
-                NRF_LOG_INFO("Retrieving amount of bytes received from peer...");
+                //NRF_LOG_INFO("Retrieving amount of bytes received from peer...");
                 //                NRF_LOG_INFO("Data is sent!");
 
                 break;
@@ -697,15 +696,6 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case SEND_INFO_BUTTON_PIN:
                 if (button_action == APP_BUTTON_PUSH)
                 {
-                        // PrepareDataSent();
-                        //
-                        // ble_its_c_img_info_t image_info;
-                        // image_info.file_size_bytes = m_file_object.filesize;
-                        // image_info.crc32 = m_file_object.crc32;
-                        //
-                        // NRF_LOG_HEXDUMP_INFO(&image_info, sizeof(image_info));
-                        // err_code = ble_its_c_img_info_send(&m_ble_its_c[0], &image_info);
-                        // APP_ERROR_CHECK(err_code);
                         NRF_LOG_INFO("SEND_INFO_BUTTON_PIN");
                 }
 
@@ -714,14 +704,9 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                         PrepareDataSent();
 
                         counter_start();
-//                        ble_its_c_img_info_t image_info;
-//                        image_info.file_size_bytes = data_length;
-//                        ble_its_c_img_info_send(p_ble_its_c, &image_info);
-//
-//                        ble_its_c_img_info_send();
 
-                        err_code = ble_its_c_img_info_send(&m_ble_its_c[0], &m_file_object);
-                        APP_ERROR_CHECK(err_code);
+//                        err_code = ble_its_c_img_info_send(&m_ble_its_c[0], &m_file_object);
+//                        APP_ERROR_CHECK(err_code);
 
 
                         err_code = ble_its_c_send_object(&m_ble_its_c[0], nrf52, sizeof(nrf52), m_ble_its_max_data_len);

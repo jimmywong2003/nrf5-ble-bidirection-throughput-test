@@ -2,6 +2,7 @@
 <session>
  <Bookmarks/>
  <Breakpoints groups="Breakpoints" active_group="Breakpoints">
+  <BreakpointListItem trigger="" line="382" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" group="Breakpoints" type="Breakpoint" state="4" filename="../../../main.c" useHWbreakpoint="false"/>
   <Exceptions set="MemManage;UsageFault_Coprocessor;UsageFault_CheckingError;UsageFault_StateError;BusFault;ExceptionEntryReturnFault;HardFault"/>
  </Breakpoints>
  <ExecutionProfileWindow/>
@@ -27,6 +28,8 @@
   <ProjectSessionItem path="ble_app_lbs_nus_c_pca10056_s140;ble_app_lbs_nus_c_pca10056_s140;Board Definition"/>
   <ProjectSessionItem path="ble_app_lbs_nus_c_pca10056_s140;ble_app_lbs_nus_c_pca10056_s140;Module"/>
   <ProjectSessionItem path="ble_app_lbs_nus_c_pca10056_s140;ble_app_lbs_nus_c_pca10056_s140;nRF_BLE"/>
+  <ProjectSessionItem path="ble_app_lbs_nus_c_pca10056_s140;ble_app_lbs_nus_c_pca10056_s140;nRF_Drivers"/>
+  <ProjectSessionItem path="ble_app_lbs_nus_c_pca10056_s140;ble_app_lbs_nus_c_pca10056_s140;nRF_Libraries"/>
   <ProjectSessionItem path="ble_app_lbs_nus_c_pca10056_s140;ble_app_lbs_nus_c_pca10056_s140;SDK Modified"/>
  </Project>
  <Register1>
@@ -60,17 +63,15 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="1" y="929" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="914" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="379" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_lbs_c/ble_lbs_c.c" selected="0" top="379" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="323" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_nus_c/ble_nus_c.c" selected="0" top="282" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="6" y="598" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="570" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="305" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/channel_survey.c" selected="0" top="305" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="42" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/uart/app_uart_fifo.c" selected="0" top="13" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="99" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_weak.c" selected="0" top="10" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="298" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/common/ble_conn_state.c" selected="0" top="269" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="48" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_handler_gcc.c" selected="0" top="32" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="6846" y="18" useTextEdit="1" useBinaryEdit="0" left="6729" path="ble_app_lbs_nus_c_pca10056_s140.emProject" selected="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="42" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.c" selected="0" top="21" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="726" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="726" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="121" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/nrf_ble_gatt/nrf_ble_gatt.h" selected="0" top="121" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="202" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/nrf_ble_scan/nrf_ble_scan.h" selected="0" top="186" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="147" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/nrf52_dk.h" selected="0" top="136" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="459" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.c" selected="0" top="459" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="12487" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="12485" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="87" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_weak.c" selected="0" top="83" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="19" useTextEdit="1" useBinaryEdit="0" left="0" path="ble_app_lbs_nus_c_pca10056_s140.emProject" selected="0" top="19" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="85" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../modules/nrfx/drivers/include/nrfx_rtc.h" selected="0" top="54" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="ble_app_lbs_nus_c_pca10056_s140" fileDialogDefaultFilter="" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Program Files/SEGGER/SEGGER Embedded Studio for ARM 4.10a/source/thumb_crt0.s&#xa;" fileDialogInitialDirectory="C:/Dropbox (Personal)/Nordic/SDK15.3/github/nrf5-multilink-lbs-nus-example/sdk_mod/ble_image_transfer_service_c" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <ARMCrossStudioWindow activeProject="ble_app_lbs_nus_c_pca10056_s140" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/drivers/src/nrfx_clock.c&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/drivers/src/nrfx_gpiote.c&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/drivers/src/nrfx_rtc.c&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf52840.s&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf_common.s&#xa;&#xa;C:/Program Files/SEGGER/SEGGER Embedded Studio for ARM 4.10a/source/thumb_crt0.s&#xa;&#xa;C:/Users/Jimmy/Dropbox/Nordic/SDK15.3/github/nrf5-ble-throughput-test/ble_app_lbs_nus_c/main.c&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/github/nrf5-ble-throughput-test/ble_app_lbs_nus_c/main.c" fileDialogInitialDirectory="C:/Dropbox (Personal)/Nordic/SDK15.3/github/nrf5-ble-throughput-test/ble_app_lbs_nus_c" debugSearchPath="" autoConnectCapabilities="3199"/>
 </session>
